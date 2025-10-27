@@ -13,7 +13,6 @@ ytick.labelsize : 14
 lines.markersize : 4
 
 axes.linewidth : 1.5
-figure.figsize : 3.54, 3.54
 lines.linewidth : 2
 
 ytick.minor.visible : True
