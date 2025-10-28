@@ -11,6 +11,7 @@ class InteractiveIFUViewer:
     def __init__(self, maps: Dict[str, np.ndarray], datacube: np.ndarray, 
                  maps_masks: Optional[Dict[str, Union[float, np.ndarray]]] = None, modelcube: Optional[np.ndarray] = None, 
                  continuumcube: Optional[np.ndarray] = None, binmap: Optional[np.ndarray] = None, wavelength: Optional[np.ndarray] = None,
+                 spax_info: Optional[Dict[str, np.ndarray]] = None,
                  map_kwargs: Optional[Dict[str, dict]] = None, map_titles: Optional[dict[str, str]] = None,
                  spec_kwargs: Optional[dict] = None, specmod_kwargs: Optional[dict] = None):
         """
@@ -19,52 +20,72 @@ class InteractiveIFUViewer:
         Parameters:
         ----------
         maps : dict of {str: np.ndarray}
-            A dictionary containing the 2D numpy arrays of measurements to be plotted as values using
-            `matplotlib.pyplot.imshow`.
+            A dictionary containing the 2D numpy arrays of measurements to be plotted as values 
+            using `matplotlib.pyplot.imshow`.
         datacube : np.ndarray
-            The flux datacube of the IFU data, spatially corresponding to `maps`, with the spectral axis 
-            as the 0th. The 1D spectrum of (y, x) will be plotted upon interacting with the spaxel at (y, x).
+            The flux datacube of the IFU data, spatially corresponding to `maps`, with the spectral 
+            axis as the 0th. The 1D spectrum of (y, x) will be plotted upon interacting with the 
+            spaxel at (y, x).
         maps_masks : dict of {str: float or np.ndarray}, Optional
-            A dictionary containing either 2D numpy arrays of boolean values or integers, or single values 
-            to be used to mask out values of `maps` when plotting. If the values of `map_masks` are floats,
-            values of the corresponding `map` equal to the float will be masked. If `None`, no masking will
-            occur. Every key of `map_masks` must correspond to one key of `maps`. A mask value with the key
-            'all' may be included in `maps_masks` to be applied to every map in addition to map-specific masks.
-            The 'all' mask must be a 2D array.
+            A dictionary containing either 2D numpy arrays of boolean values or integers, or single 
+            values to be used to mask out values of `maps` when plotting; optional. If the values of 
+            `map_masks` are floats, values of the corresponding `map` equal to the float will be 
+            masked. If `None`, no masking will occur. Every key of `map_masks` must correspond to 
+            one key of `maps`. A mask value with the key 'all' may be included in `maps_masks` to be 
+            applied to every map in addition to map-specific masks. The 'all' mask must be a 2D 
+            array.
         modelcube : np.ndarray, Optional
-            An additional datacube containing flux data corresponding to each 1D spectrum of `datacube`. The
-            spectra of `modelcube` will be plotted with those of `datacube`, or `datacube / continuumcube` if 
-            `continuumcube` is not `None`. *Note:* the values of units of this data should be normalized flux 
-            if `continuumcube` is not `None`; the input of `modelcube` is not normalized by `continuumcube`.
+            An additional datacube containing flux data corresponding to each 1D spectrum of 
+            `datacube`. The spectra of `modelcube` will be plotted with those of `datacube`, or 
+            `datacube / continuumcube` if `continuumcube` is not `None`. *Note:* the values of 
+            units of this data should be normalized flux if `continuumcube` is not `None`; the 
+            input of `modelcube` is not normalized by `continuumcube`.
         continuumcube : np.ndarray, Optional
-            An additional flux datacube to be used to normalize each 1D spectrum of `datacube` when plotting,
-            e.g., the flux continuum. The shape of `continuumcube` must be identical to `datacube`. If `None`,
-            no normalization will occur.
+            An additional flux datacube to be used to normalize each 1D spectrum of `datacube` when 
+            plotting, e.g., the flux continuum. The shape of `continuumcube` must be identical to 
+            `datacube`. If `None`, no normalization will occur.
         binmap : np.ndarray, Optional
-            An optional 2D map of unique spatial bin identifiers.
+            A 2D map of unique spatial bin identifiers; optional. If not `None`, the bin 
+            identification value of any interacted spaxel will be displayed, and contours enclosing 
+            the binned area will be drawn.
         wavelength : np.ndarray, Optional
-            An optional spectral wavelength to be plotted with `datacube`. If wavelength is a 3D array,
-            the wavelength of the corresponding spaxel will be plotted.
+            The spectral wavelength to be plotted with `datacube`; optional Must be either a 
+            1D array with size equal to `datacube.shape[0]` or 3D array with shape equal to 
+            `datacube`. If wavelength is a 3D array, the wavelength of the corresponding spaxel 
+            will be plotted.
+        spax_info : dict of {str: np.ndarray}
+            A dictionary of values or measurements and uncertainties to be listed when a spaxel is 
+            clicked, similar to `maps`; optional. The values of `spax_info` must be either 2D arrays 
+            with equal dimensions to `maps`, or 3D arrays with a depth axis along axis 0 and spatial 
+            dimensions along axis 1 and 2. If any value of `spax_info` is a 2D array, the measurements 
+            are drawn from (0, :, :) and 1-sigma uncertainties from (1, :, :). If any value of 
+            `spax_info` is a 3D array, the measurements are drawn from (0, :, :) with asymmetric 
+            1-sigma uncertainties at (1, :, :) and (2, :, :), lower and upper bound, respectively. 
+            **UNCERTAINTIES NOT YET SUPPORTED**
+            The keys of `spax_info` will be used to label each value, and can contain LaTeX 
+            formatting.
         map_kwargs : dict of {str: dict}, Optional
-            An optional dictionary containing dictionaries as values to be passed into `matplotlib.pyplot.imshow`
-            as `**kwargs`. The every key of `map_kwargs` must be identical to a key of `maps`. If `None`,
-            default values will be used.
+            An optional dictionary containing dictionaries as values to be passed into 
+            `matplotlib.pyplot.imshow` as `**kwargs`. The every key of `map_kwargs` must be 
+            identical to a key of `maps`. If `None`, default values will be used.
         map_titles : dict of {str: str}, Optional
-            An optional dictionary containing strings as values to be used as titles/labels for each map. Every key
-            of `map_titles` must correspond to a key of `maps`. If `None`, or for any `maps` value without a 
-            corresponding `map_titles` entry will be labeled by the key(s) of `maps`.
+            An optional dictionary containing strings as values to be used as titles/labels for 
+            each map. Every key of `map_titles` must correspond to a key of `maps`. If `None`, or 
+            for any `maps` value without a corresponding `map_titles` entry will be labeled by the 
+            key(s) of `maps`.
         spec_kwargs : dict, Optional
-            An optional dictionary to be passed directly into `matplotlib.pyplot.plot` as `**kwargs` for each
-            1D spectrum plot of `datacube` or `datacube / continuumcube`. If `None`, default values will be used.
+            An optional dictionary to be passed directly into `matplotlib.pyplot.plot` as `**kwargs` 
+            for each 1D spectrum plot of `datacube` or `datacube / continuumcube`. If `None`, 
+            default values will be used.
         specmod_kwargs : dict, Optional
-            An optional dictionary to be passed directly into `matplotlib.pyplot.plot` as `**kwargs` for each
-            1D model spectrum plot of `modelcube`. If `None`, default values will be used.
+            An optional dictionary to be passed directly into `matplotlib.pyplot.plot` as `**kwargs` 
+            for each 1D model spectrum plot of `modelcube`. If `None`, default values will be used.
         """
         rootpath = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
         configpath = os.path.join(rootpath, 'configs')
         plt.style.use(os.path.join(configpath, 'figures.mplstyle'))
         # validate inputs 
-        self._validate(maps, datacube, maps_masks, modelcube, continuumcube, binmap, wavelength, map_kwargs, map_titles, spec_kwargs, specmod_kwargs)
+        self._validate(maps, datacube, maps_masks, modelcube, continuumcube, binmap, wavelength, spax_info, map_kwargs, map_titles, spec_kwargs, specmod_kwargs)
         
         # Main data
         self.maps = maps
@@ -76,6 +97,7 @@ class InteractiveIFUViewer:
         self.wavelength = wavelength
 
         # plotting kwargs and additionals
+        self.spax_info = spax_info if spax_info is not None else {}
         self.map_titles = map_titles if map_titles is not None else {}
         self.map_kwargs = map_kwargs if map_kwargs is not None else {}
         self.spec_kwargs = spec_kwargs if spec_kwargs is not None else {}
@@ -90,8 +112,13 @@ class InteractiveIFUViewer:
         self.current_mask = self._get_mask(self.current_map_name)
         self.current_map_title = self.map_titles.get(self.current_map_name, self.current_map_name)
 
-        base_w, base_h = plt.rcParams['figure.figsize']
+        # plot formatting
+        self.add_radio = True if len(list(self.maps.values())) > 1 else False
+        self.add_info = True if spax_info is not None else False
+        self._setup_plot_formatting()
+
         # figure and axes
+        base_w, base_h = plt.rcParams['figure.figsize']
         self.fig = plt.figure(figsize=(base_w * 2, base_h))
         self._setup_layout()
 
@@ -101,10 +128,11 @@ class InteractiveIFUViewer:
         self.click_marker = None
         self.clicked_bin_contour = None
         self.hovered_bin_contour = None
-        
+
         # setup plots
         self._setup_map_plot()
         self._setup_spectrum_plot()
+        self._setup_info_display()
         self._setup_controls()
 
         # connect events
@@ -114,7 +142,7 @@ class InteractiveIFUViewer:
         self.last_clicked = None
         self.current_spectrum_artists = []
 
-    def _validate(self, maps, datacube, maps_masks, modelcube, continuumcube, binmap, wavelength, map_kwargs, map_titles, spec_kwargs, specmod_kwargs):
+    def _validate(self, maps, datacube, maps_masks, modelcube, continuumcube, binmap, wavelength, spax_info, map_kwargs, map_titles, spec_kwargs, specmod_kwargs):
         # validate datacube
         if not isinstance(datacube, np.ndarray) or datacube.ndim !=3:
             raise ValueError(f"datacube should be a 3D array")
@@ -131,7 +159,7 @@ class InteractiveIFUViewer:
         # validate maps_masks
         if maps_masks is not None:
             for key, value in maps_masks.items():
-                if key not in list(maps.keys()):
+                if key != 'all' and key not in list(maps.keys()):
                     raise ValueError(f"Key: {key} of `maps_masks` does not correspond to one of `maps`.")
                 if isinstance(value, np.ndarray):
                     if value.shape != (ydim, xdim):
@@ -171,6 +199,19 @@ class InteractiveIFUViewer:
                 if wavelength.shape != datacube.shape:
                     raise ValueError(f"wavelength datacube does not match the dimensions of flux datacube.")
 
+        # validate spax_info
+        if spax_info is not None:
+            for key, value in spax_info.items():
+                if not isinstance(value, np.ndarray):
+                    raise ValueError(f"Value of `spax_info['{key}']` is not of type np.ndarray.")
+                if value.ndim != 2 and value.ndim != 3:
+                    raise ValueError(f"Array of `spax_info['{key}']` is not a 2D or 3D array.")
+                
+                valueshape = value.shape if value.ndim == 2 else value.shape[1:]
+                if valueshape != (ydim, xdim):
+                    raise ValueError(f"Array of `spax_info['{key}']` does not match spatial dimension of input datacube / maps. "
+                                    f"datacube has dimensions {datacube.shape} while `spax_info['{key}']` has dimensions {value.shape}")
+
         # validate map_kwargs 
         if map_kwargs is not None:
             for key, value in map_kwargs.items():
@@ -208,18 +249,70 @@ class InteractiveIFUViewer:
             invalid_plot_keys = [k for k in specmod_kwargs if k not in valid_plot_params]
             if invalid_plot_keys:
                 raise ValueError(f"Invalid matplotlib.pyplot.plot kwargs in specmod_kwargs: {invalid_plot_keys}")
+    
+    def _setup_plot_formatting(self):
+        """Initialize attributes to be used to format the figure and subplots"""
+        ### base setup
+        # total rows and columns of plot
+        self.nrow = 2
+        self.ncol = 4
+
+        # row, column position and row, column spans of main plots
+        self.ax_map_rownum = 0
+        self.ax_map_colnum = 0
+        self.ax_map_rowspan = 2
+        self.ax_map_colspan = 2
+
+        self.ax_spectrum_rownum = 0
+        self.ax_spectrum_colnum = 2
+        self.ax_spectrum_rowspan = 2
+        self.ax_spectrum_colspan = 2
+
+        # if radio buttons will be added, adjust figure values
+        if self.add_radio:
+            # add one extra col to figure
+            self.ncol += 1
+
+            # adjust col positions of main plots to fit in radio buttons ax
+            self.ax_map_colnum += 1
+            self.ax_spectrum_colnum += 1
             
+            # define row, col location and span of radio buttons ax
+            self.radio_box_loc = (0, 0)
+            self.radio_box_colspan = 1
+            self.radio_box_rowspan = 2
+
+        # if spaxel info box will be added, adjust figure values
+        if self.add_info:
+            # increase rowsize by one
+            self.nrow += 1
+
+            # increase map and radio rowspan by one
+            self.ax_map_rowspan += 1
+            self.radio_box_rowspan += 1
+
+            # define row, col location and span of info box ax (bottom row, aligned with spectrum plot)
+            self.infobox_loc = (self.nrow - 1, self.ax_spectrum_colnum)
+            self.infobox_rowspan = 1
+            self.infobox_cospan = 2 # same width as spectrum plot
+
+        # define tuples to store main ax locs and figure shape
+        self.ax_map_loc = (self.ax_map_rownum, self.ax_map_colnum)
+        self.ax_spectrum_loc = (self.ax_spectrum_rownum, self.ax_spectrum_colnum)
+        self.fig_shape = (self.nrow, self.ncol)
+        
+
     def _setup_layout(self):
         """Initialize the main axes and adjust spacing"""
-        self.ax_map = plt.subplot2grid((2, 3), (0, 0), colspan=2, rowspan=2)
-        self.ax_spectrum = plt.subplot2grid((2, 3), (0, 2), rowspan=2)
+        self.ax_map = plt.subplot2grid(self.fig_shape, self.ax_map_loc, colspan=self.ax_map_colspan, rowspan=self.ax_map_rowspan)
+        self.ax_spectrum = plt.subplot2grid(self.fig_shape, self.ax_spectrum_loc, colspan=self.ax_spectrum_colspan, rowspan=self.ax_spectrum_rowspan)
 
         plt.subplots_adjust(left=0.1, right=0.95, bottom=0.1, wspace=0.3, hspace=0.3)
 
     def _setup_map_plot(self):
         """Initialize the current map plot display"""
 
-        mapdata = np.copy(self.current_map)
+        mapdata = np.copy(self.current_map).astype(float)
         mapdata[self.current_mask] = np.nan
 
         kwargs = self.map_kwargs.get(self.current_map_name, {})
@@ -255,15 +348,45 @@ class InteractiveIFUViewer:
         """Initialize spectrum display"""
         self.ax_spectrum.set_xlabel('Wavelength' if self.wavelength is not None else 'Channel')
         self.ax_spectrum.set_ylabel('Flux')
-        self.ax_spectrum.set_box_aspect(1)
+        #self.ax_spectrum.set_box_aspect(1)
+    
+    def _setup_info_display(self):
+        """Initialize spaxel info display if spax_info was input"""
+        if not self.add_info:
+            return
+        
+        self.ax_infobox = plt.subplot2grid(self.fig_shape, self.infobox_loc, rowspan = self.infobox_rowspan, colspan = self.infobox_cospan)
+        self.ax_infobox.axis('off')
 
+        # keys as labels
+        self.info_labels = list(self.spax_info.keys())
+
+        # init empty values
+        self.info_values = ['--'] * len(self.info_labels)
+
+        # sort data into table
+        table = [[label, value] for label, value in zip(self.info_labels, self.info_values)]
+
+        self.info_table = self.ax_infobox.table(
+            cellText=table,
+            cellLoc='left',
+            loc='center',   
+        )
+
+        self.info_table.auto_set_font_size(False)
+        self.info_table.set_fontsize(14)
+
+    
     def _setup_controls(self):
         """Setup interactive controls"""
         # only set up radio buttons if more than one map
-        if len(list(self.maps.values())) > 1:
-            radio_ax = plt.axes([0.01, 0.15, 0.1, 0.8])
+        if self.add_radio:
+            #radio_ax = plt.axes([0.001, 0.15, 0.1, 0.8])
+            radio_ax = plt.subplot2grid(self.fig_shape, self.radio_box_loc, rowspan=self.radio_box_rowspan, colspan=self.radio_box_colspan)
+            radio_ax.axis('off')
             #keylist = [self.map_titles.get(key, key) for key in self.maps.keys()]
-            self.radio = RadioButtons(radio_ax, list(self.maps.keys()))
+            keylist = list(self.maps.keys())
+            self.radio = RadioButtons(radio_ax, keylist)
             self.radio.on_clicked(self._change_map)
 
             # style radio buttons, attempt to handle different matplotlib version
@@ -291,7 +414,7 @@ class InteractiveIFUViewer:
         kwargs = self.map_kwargs.get(label, {})
 
         # mask the map data
-        mapdata = np.copy(self.current_map)
+        mapdata = np.copy(self.current_map).astype(float)
         mapdata[self.current_mask] = np.nan
         
         # update the data
@@ -358,6 +481,9 @@ class InteractiveIFUViewer:
 
         # plot the spectrum
         self._plot_spectrum(x,y)
+
+        # update the bin_info
+        self._updated_spax_info(x,y)
 
         # update click state
         self.last_clicked = (x, y)
@@ -429,6 +555,37 @@ class InteractiveIFUViewer:
         else:
             self.hovered_bin_contour = contour
 
+    def _updated_spax_info(self, x: int, y: int):
+        """Update the spaxel info in the display box"""
+        if not hasattr(self, 'info_table') or not self.add_info:
+            return
+        
+        new_values = []
+        for label in self.info_labels:
+            array = self.spax_info[label]
+            value = array[y, x] if array.ndim == 2 else array[:, y, x]
+
+            # handle uncertainties of 3D array
+            if isinstance(value, np.ndarray):
+                if value.size == 2:
+                    string = fr"${value[0]:.2f} \pm {value[1]:.2f}$"
+                elif value.size ==3:
+                    string = fr"${value[0]:.2f}_{{-{value[1]:.2f}}}^{{+{value[2]:.2f}}}$"
+                else:
+                    string = '--'
+                new_values.append(string)
+
+            # format if float
+            elif isinstance(value, (float, np.floating)):
+                new_values.append(f'{value:.3f}')
+
+            else:
+                new_values.append(str(value))
+            
+        for i, value in enumerate(new_values):
+            self.info_table[(i, 1)].get_text().set_text(value)
+
+
     def _plot_spectrum(self, x: int, y: int, clear_previous = True):
         """Plot the spectrum of spaxel y, x; optionally, replace the current plot with clear_previous"""
 
@@ -460,13 +617,13 @@ class InteractiveIFUViewer:
             xlabel = 'Channel'
 
         # plot the spectrum
-        specline = self.ax_spectrum.plot(wave, spectrum, 'k', drawstyle = 'steps-mid')
+        specline = self.ax_spectrum.plot(wave, spectrum, 'k', drawstyle = 'steps-mid', linewidth = 2.5)
         self.current_spectrum_artists.append(specline)
 
         # extract the 1D model if model is not None and plot
         if self.modelcube is not None:
             specmod = self.modelcube[:, y, x]
-            modline = self.ax_spectrum.plot(wave, specmod, '#0063ff', drawstyle = 'steps-mid')
+            modline = self.ax_spectrum.plot(wave, specmod, '#0063ff', drawstyle = 'steps-mid', linewidth = 2.1)
             self.current_spectrum_artists.append(modline)
 
         
@@ -476,6 +633,7 @@ class InteractiveIFUViewer:
             self.ax_spectrum.set_box_aspect(1)
 
     def _get_mask(self, label):
+        """Returns the 2D mask for maps[label]"""
         all_mask = self.maps_masks.get('all', None)
         value = self.maps_masks.get(label, np.zeros((self.ny, self.nx))) 
         mask = value.astype(bool) if not isinstance(value, (float, int)) else (self.current_map == value)
